@@ -37,7 +37,27 @@ So `python3 run.py 5 --min-gap 60 --max-gap 300` submits 5 responses,
 
 In the form editor, go to **Responses** — that count is the truth.
 Don't run more than your target: the script doesn't know your target,
-it just submits however many you asked for.
+it just submits however many you asked for. The log's `ok=X/N` line
+counts submissions where the confirmation page was actually seen —
+if `ok` is lower than what you asked for, something failed; check the
+log lines for that submission.
+
+## Multi-page forms
+
+If your form has more than one page (it says "Page 1 of N" at the
+bottom), a plain submit only records the **first page** — every later
+question comes back blank. In `form_filler.py`, set `PAGE_HISTORY`
+to `"0,1,2,..."` up to N-1 (for example `"0,1,2,3"` for a 4-page form)
+and the script handles the rest. Leave it as `""` for single-page forms.
+
+## If answers land blank
+
+Two usual causes, in order:
+
+1. **Wrong entry IDs.** The ID must be the number after `entry.` in the
+   prefilled link — not the question's own ID. If in doubt, open the
+   live form, view the page source, and search for `entry.` to compare.
+2. **Multi-page form without `PAGE_HISTORY`** — see above.
 
 ## Files
 
