@@ -5,7 +5,7 @@ Fill in the 3 TODOs below, then run it with run.py.
 Nothing in run.py needs changing.
 """
 
-import random, urllib.request, urllib.parse
+import random, re, http.cookiejar, urllib.request, urllib.parse
 
 # TODO 1: your form's submit URL
 # Open your form, copy the responder link, e.g.
@@ -18,12 +18,34 @@ FORM_URL = "https://docs.google.com/forms/d/e/PASTE_YOUR_FORM_ID_HERE/formRespon
 # Fill in one dummy answer for every question, click Get link.
 # That link contains entry.123456789 for each question, in order.
 # q1 = first question, q2 = second, etc. Add/remove lines to match your form.
+# TIP: the entry ID is the number AFTER "entry." — not the question's
+# own ID. If your answers land blank, you almost certainly used the
+# wrong one. Check it against the form page: view the form, search the
+# page source for "entry." and compare.
 E = {
     "q1": "PASTE_ENTRY_ID_1",
     "q2": "PASTE_ENTRY_ID_2",
     "q3": "PASTE_ENTRY_ID_3",
     # "q4": "PASTE_ENTRY_ID_4",
 }
+
+# TODO 4 (only if your form has MORE THAN ONE PAGE):
+# Open your form and look at the bottom: it says "Page 1 of N".
+# Set PAGE_HISTORY to "0,1,2,..." up to N-1, e.g. "0,1,2,3" for 4 pages.
+# Leave it as "" for a single-page form.
+# WHY: on a multi-page form a plain POST only records the FIRST page's
+# answers — every later question comes back blank. With PAGE_HISTORY set,
+# submit() first loads the form for a fresh token, then posts everything
+# at once with all pages marked visited.
+PAGE_HISTORY = ""
+
+# What counts as "it worked": a phrase from your form's confirmation page.
+# Google's default is "Your response has been recorded". Some forms have
+# a custom message instead — submit one response by hand, read the
+# confirmation page, and paste a distinctive phrase from it here.
+# NEVER use a bare "Thank you": form descriptions often contain those
+# words, so that check passes even when nothing was recorded.
+CONFIRM_TEXT = "Your response has been recorded"
 
 
 def pick(opts_weights):
@@ -38,6 +60,11 @@ def pick(opts_weights):
 #   the second option shows up more often.
 # - Paragraph / short answer: use a pool of messy, realistic answers
 #   like below, and sometimes leave it blank (questions are not required).
+# - Checkbox ("select all that apply"): return a LIST of options, e.g.
+#   row["q4"] = ["Option A", "Option C"] — submit() sends one value per item.
+# - Keep answers CONSISTENT with each other: a 25-34-year-old respondent
+#   is usually a grad student or working, not a college freshman; a
+#   "Never" user shouldn't also list three apps they use daily.
 # - The keys (q1, q2...) must match E above, and the values must match
 #   your form's option text EXACTLY, or Google will reject that answer.
 PARAGRAPH_POOL = [
@@ -61,21 +88,48 @@ def gen_row():
     return row
 
 
+_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+
+
 def submit(row):
-    data = {}
+    pairs = []
     for k, v in row.items():
-        if v == "":
+        if v == "" or v is None:
             continue
-        data[f"entry.{E[k]}"] = v
-    data["submit"] = "Submit"
-    encoded = urllib.parse.urlencode(data).encode()
-    req = urllib.request.Request(FORM_URL, data=encoded, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Content-Type": "application/x-www-form-urlencoded",
-    })
+        if isinstance(v, list):  # checkbox question: one pair per option
+            for item in v:
+                pairs.append((f"entry.{E[k]}", item))
+        else:
+            pairs.append((f"entry.{E[k]}", v))
     try:
+        if PAGE_HISTORY:
+            # Multi-page form: load the form for a fresh fbzx +
+            # partialResponse token, then post everything with all
+            # pages marked visited. Without this, only page 1 records.
+            jar = http.cookiejar.CookieJar()
+            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+            view_url = FORM_URL.replace("/formResponse", "/viewform")
+            html = opener.open(urllib.request.Request(view_url, headers={"User-Agent": _UA}), timeout=20).read().decode(errors="ignore")
+            fbzx = re.search(r'fbzx" value="([0-9-]+)', html).group(1)
+            pr = re.search(r'partialResponse" value="([^"]+)"', html).group(1).replace('&quot;', '"')
+            pairs += [("fvv", "1"), ("partialResponse", pr), ("pageHistory", PAGE_HISTORY),
+                      ("fbzx", fbzx), ("submissionTimestamp", "-1"), ("submit", "Submit")]
+            req = urllib.request.Request(FORM_URL, data=urllib.parse.urlencode(pairs).encode(), headers={
+                "User-Agent": _UA,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Referer": view_url,
+            })
+            with opener.open(req, timeout=20) as r:
+                body = r.read().decode(errors="ignore")
+                return r.status, (CONFIRM_TEXT in body, len(body))
+        pairs.append(("submit", "Submit"))
+        encoded = urllib.parse.urlencode(pairs).encode()
+        req = urllib.request.Request(FORM_URL, data=encoded, headers={
+            "User-Agent": _UA,
+            "Content-Type": "application/x-www-form-urlencoded",
+        })
         with urllib.request.urlopen(req, timeout=20) as r:
             body = r.read().decode(errors="ignore")
-            return r.status, ("Thank you" in body or "recorded" in body or "Your response" in body, len(body))
+            return r.status, (CONFIRM_TEXT in body, len(body))
     except Exception as e:
         return None, (str(e), 0)
