@@ -45,12 +45,15 @@ def log(msg):
 
 log(f"RUN start count={args.count} gap={args.min_gap}-{args.max_gap}s")
 random.seed()
+ok = 0
 for i in range(args.count):
     row = gen_row()
     status, info = submit(row)
     log(f"RUN submit {i + 1}/{args.count} status={status} info={info}")
+    if status in (200, 302) and info[0]:
+        ok += 1
     if i < args.count - 1:
         gap = random.uniform(args.min_gap, args.max_gap)
         log(f"RUN sleeping {gap:.0f}s before next submission")
         time.sleep(gap)
-log(f"RUN done count={args.count}")
+log(f"RUN done ok={ok}/{args.count} (ok = confirmation page seen)")
