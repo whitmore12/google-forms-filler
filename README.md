@@ -1,13 +1,9 @@
 # Demo Testing for Job
 
-Submit demo responses to a Google Form, spaced out so the timestamps
-don't all land at once. No browser, no Selenium — plain Python posting
-straight to the form's submit endpoint.
-
 ## Quick start
 
 1. Clone this repo and `cd` into it. You only need Python 3, nothing to install.
-2. Open `form_filler.py` — that is the **only file you edit**. It has 3 things to replace:
+2. Open `demo.py` — that is the **only file you edit**. It has 3 things to replace:
    - **TODO 1 — `FORM_URL`:** your form's responder link with `/viewform` swapped for `/formResponse`.
    - **TODO 2 — `E` (entry IDs):** in the form editor, go to the three dots > **Get prefilled link**, fill in one dummy answer for every question, and copy the `entry.123456789` numbers from that link, in question order.
    - **TODO 3 — `gen_row()`:** rewrite it for your questions. Multiple choice / Likert answers go in `pick()` with the **exact option text** from your form (Google rejects anything that doesn't match exactly) and realistic weights. Paragraph answers go in `PARAGRAPH_POOL` — messy, lowercase, typos, and sometimes blank.
@@ -46,7 +42,7 @@ log lines for that submission.
 
 If your form has more than one page (it says "Page 1 of N" at the
 bottom), a plain submit only records the **first page** — every later
-question comes back blank. In `form_filler.py`, set `PAGE_HISTORY`
+question comes back blank. In `demo.py`, set `PAGE_HISTORY`
 to `"0,1,2,..."` up to N-1 (for example `"0,1,2,3"` for a 4-page form)
 and the script handles the rest. Leave it as `""` for single-page forms.
 
@@ -61,5 +57,5 @@ Two usual causes, in order:
 
 ## Files
 
-- `form_filler.py` — your form's URL, entry IDs, and answer generator. Edit this.
+- `demo.py` — your form's URL, entry IDs, and answer generator. Edit this.
 - `run.py` — the runner (count + gap settings). Don't need to edit this.
