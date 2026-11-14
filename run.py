@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the filler. No editing needed here, edit form_filler.py instead.
+"""Run it. No editing needed here, edit demo.py instead.
 
 Usage:
     python3 run.py 10
@@ -20,9 +20,9 @@ Each run logs to fill_log.txt in this folder.
 import argparse, datetime, random, sys, time
 
 sys.path.insert(0, ".")
-from form_filler import gen_row, submit
+from demo import gen_row, submit
 
-parser = argparse.ArgumentParser(description="Submit demo responses to a Google Form.")
+parser = argparse.ArgumentParser(description="Submit demo responses.")
 parser.add_argument("count", nargs="?", type=int, default=5, help="how many responses to submit")
 parser.add_argument("--min-gap", type=int, default=240, help="shortest gap between submissions, seconds")
 parser.add_argument("--max-gap", type=int, default=7200, help="longest gap between submissions, seconds")
